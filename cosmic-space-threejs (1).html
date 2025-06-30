@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cosmic Space - Three.js</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+        }
+        canvas {
+            display: block;
+        }
+        .info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-family: Arial, sans-serif;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="info">Click and drag to rotate view | Mouse wheel to zoom</div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Create the scene, camera, and renderer
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Set camera position
+        camera.position.z = 50;
+
+        // Create star texture
+        function createStarTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 128;
+            canvas.height = 128;
+            const context = canvas.getContext('2d');
+            
+            // Fill with transparent black
+            context.fillStyle = 'rgba(0,0,0,0)';
+            context.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Create star glow
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            
+            // Draw the glow
+            const gradient = context.createRadialGradient(
+                centerX, centerY, 0,
+                centerX, centerY, canvas.width / 2
+            );
+            gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+            gradient.addColorStop(0.15, 'rgba(255, 255, 255, 0.8)');
+            gradient.addColorStop(0.3, 'rgba(128, 128, 255, 0.4)');
+            gradient.addColorStop(0.6, 'rgba(64, 64, 128, 0.1)');
+            gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            
+            context.fillStyle = gradient;
+            context.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw the star cross
+            context.beginPath();
+            context.moveTo(centerX - 60, centerY);
+            context.lineTo(centerX + 60, centerY);
+            context.moveTo(centerX, centerY - 60);
+            context.lineTo(centerX, centerY + 60);
+            context.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+            context.lineWidth = 2;
+            context.stroke();
+            
+            // Convert to texture
+            const texture = new THREE.CanvasTexture(canvas);
+            return texture;
+        }
+        
+        const starTexture = createStarTexture();
+        
+        // Create stars as small cubes with texture
+        const starCount = 5000; // Reduced count for better performance with cubes
+        const starCubes = new THREE.Group();
+        
+        // Define different star materials with the texture
+        const starMaterials = [
+            new THREE.MeshBasicMaterial({ 
+                map: starTexture, 
+                transparent: true, 
+                color: 0xFFFFFF,
+                blending: THREE.AdditiveBlending
+            }),
+            new THREE.MeshBasicMaterial({ 
+                map: starTexture, 
+                transparent: true, 
+                color: 0xCCDDFF,
+                blending: THREE.AdditiveBlending
+            }),
+            new THREE.MeshBasicMaterial({ 
+                map: starTexture, 
+                transparent: true, 
+                color: 0xFFDDAA,
+                blending: THREE.AdditiveBlending
+            })
+        ];
+        
+        // Create a small cube geometry for the stars
+        const starGeometry = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+        
+        // Create the star cubes
+        const starPositions = [];
+        const starScales = [];
+        const starTypes = [];
+        
+        for (let i = 0; i < starCount; i++) {
+            // Create stars in a large sphere
+            const radius = Math.random() * 1000 + 50;
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.acos(2 * Math.random() - 1);
+            
+            const x = radius * Math.sin(phi) * Math.cos(theta);
+            const y = radius * Math.sin(phi) * Math.sin(theta);
+            const z = radius * Math.cos(phi);
+            
+            // Store positions and other properties for animation
+            starPositions.push({ x, y, z });
+            starScales.push(0.5 + Math.random() * 1.5);
+            starTypes.push(Math.floor(Math.random() * starMaterials.length));
+            
+            // Create the star cube
+            const starMaterial = starMaterials[starTypes[i]];
+            const star = new THREE.Mesh(starGeometry, starMaterial);
+            
+            star.position.set(x, y, z);
+            star.scale.set(
+                starScales[i],
+                starScales[i],
+                starScales[i]
+            );
+            
+            // Random rotation for variety
+            star.rotation.x = Math.random() * Math.PI * 2;
+            star.rotation.y = Math.random() * Math.PI * 2;
+            star.rotation.z = Math.random() * Math.PI * 2;
+            
+            starCubes.add(star);
+        }
+        
+        scene.add(starCubes);
+
+        // Create some larger nebula-like objects
+        function createNebula(color, size, count, distance) {
+            const nebulaGeometry = new THREE.BufferGeometry();
+            const nebulaMaterial = new THREE.PointsMaterial({
+                color: color,
+                size: size,
+                transparent: true,
+                opacity: 0.6,
+                blending: THREE.AdditiveBlending
+            });
+
+            const vertices = [];
+            for (let i = 0; i < count; i++) {
+                const radius = distance + Math.random() * 100 - 50;
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos(2 * Math.random() - 1);
+                
+                const x = radius * Math.sin(phi) * Math.cos(theta);
+                const y = radius * Math.sin(phi) * Math.sin(theta);
+                const z = radius * Math.cos(phi);
+                
+                vertices.push(x, y, z);
+            }
+
+            nebulaGeometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+            return new THREE.Points(nebulaGeometry, nebulaMaterial);
+        }
+
+        // Create several nebulas
+        const nebula1 = createNebula(0x8866FF, 3.0, 500, 300);
+        const nebula2 = createNebula(0xFF6688, 2.5, 400, 500);
+        const nebula3 = createNebula(0x66FFFF, 2.0, 600, 700);
+        
+        scene.add(nebula1);
+        scene.add(nebula2);
+        scene.add(nebula3);
+
+        // Add mouse controls
+        let isDragging = false;
+        let previousMousePosition = {
+            x: 0,
+            y: 0
+        };
+        let rotation = {
+            x: 0,
+            y: 0
+        };
+
+        document.addEventListener('mousedown', function(e) {
+            isDragging = true;
+        });
+
+        document.addEventListener('mousemove', function(e) {
+            if (isDragging) {
+                const deltaMove = {
+                    x: e.clientX - previousMousePosition.x,
+                    y: e.clientY - previousMousePosition.y
+                };
+
+                rotation.x += deltaMove.y * 0.005;
+                rotation.y += deltaMove.x * 0.005;
+                
+                // Apply rotation to the entire scene
+                scene.rotation.x = rotation.x;
+                scene.rotation.y = rotation.y;
+            }
+            
+            previousMousePosition = {
+                x: e.clientX,
+                y: e.clientY
+            };
+        });
+
+        document.addEventListener('mouseup', function(e) {
+            isDragging = false;
+        });
+
+        // Add mouse wheel zoom
+        document.addEventListener('wheel', function(e) {
+            camera.position.z += e.deltaY * 0.1;
+            // Limit how close and far the camera can go
+            camera.position.z = Math.max(10, Math.min(camera.position.z, 200));
+        });
+
+        // Handle window resize
+        window.addEventListener('resize', function() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Create the animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Animate star cubes
+            starCubes.children.forEach((star, i) => {
+                // Slowly move stars toward the camera
+                const pos = starPositions[i];
+                const length = Math.sqrt(pos.x * pos.x + pos.y * pos.y + pos.z * pos.z);
+                
+                // Normalize to get direction
+                const normalX = pos.x / length;
+                const normalY = pos.y / length;
+                const normalZ = pos.z / length;
+                
+                // Move star toward camera
+                pos.x -= normalX * 0.5;
+                pos.y -= normalY * 0.5;
+                pos.z -= normalZ * 0.5;
+                
+                // Update cube position
+                star.position.set(pos.x, pos.y, pos.z);
+                
+                // Slowly rotate the star cubes
+                star.rotation.x += 0.002;
+                star.rotation.y += 0.003;
+                
+                // If star is too close to camera, reset it far away
+                if (length < 50) {
+                    const newRadius = 1000;
+                    const theta = Math.random() * Math.PI * 2;
+                    const phi = Math.acos(2 * Math.random() - 1);
+                    
+                    pos.x = newRadius * Math.sin(phi) * Math.cos(theta);
+                    pos.y = newRadius * Math.sin(phi) * Math.sin(theta);
+                    pos.z = newRadius * Math.cos(phi);
+                    
+                    star.position.set(pos.x, pos.y, pos.z);
+                }
+            });
+            
+            // Slow rotation of nebulas
+            nebula1.rotation.y += 0.0003;
+            nebula2.rotation.x += 0.0002;
+            nebula3.rotation.z += 0.0001;
+            
+            renderer.render(scene, camera);
+        }
+
+        animate();
+    </script>
+</body>
+</html>
