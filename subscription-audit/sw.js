@@ -1,7 +1,7 @@
 /* Minimal offline cache so the app opens on the phone without a connection.
    No data is cached or sent — only the app's own files. */
 const CACHE = 'subaudit-v1';
-const ASSETS = ['./subscription-auditor.html', './manifest.webmanifest', './icon.svg'];
+const ASSETS = ['./index.html', './manifest.webmanifest', './icon.svg'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).catch(() => {}));
@@ -14,6 +14,6 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   e.respondWith(
-    caches.match(e.request).then(r => r || fetch(e.request).catch(() => caches.match('./subscription-auditor.html')))
+    caches.match(e.request).then(r => r || fetch(e.request).catch(() => caches.match('./index.html')))
   );
 });

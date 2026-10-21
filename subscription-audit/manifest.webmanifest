@@ -2,7 +2,7 @@
   "name": "Subscription Auditor",
   "short_name": "Sub Auditor",
   "description": "Find and cancel wasteful subscriptions. Private and on-device.",
-  "start_url": "./subscription-auditor.html",
+  "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait-primary",

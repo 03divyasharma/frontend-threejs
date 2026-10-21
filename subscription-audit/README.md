@@ -8,8 +8,8 @@ A phone-first, on-device subscription-audit tool for finance teams and business 
 
 | File | What it is |
 |---|---|
-| [`subscription-auditor.html`](subscription-auditor.html) | **The app.** Runs in any browser, installable to a phone home screen. No dependencies, works offline, no LLM. |
-| [`manifest.webmanifest`](manifest.webmanifest), [`sw.js`](sw.js), [`icon.svg`](icon.svg) | PWA support files — make it installable as a phone app and work offline. Keep them next to the HTML when hosting. |
+| [`index.html`](index.html) | **The app.** Runs in any browser, installable to a phone home screen. No dependencies, works offline, no LLM. |
+| [`manifest.webmanifest`](manifest.webmanifest), [`sw.js`](sw.js), [`icon.svg`](icon.svg) | PWA support files — make it installable as a phone app and work offline. Keep them next to `index.html` when hosting. |
 | [`SETUP-GUIDE.md`](SETUP-GUIDE.md) | **Client setup guide.** How to open/install it, what data to add, read the results, set up phone reminders, and the privacy guarantees. |
 | [`SALES-PLAYBOOK.md`](SALES-PLAYBOOK.md) | **How & where to sell it** as a ₹1L one-time engagement — targeting, outreach, the demo, objections, delivery, and scaling. |
 
@@ -29,7 +29,17 @@ A phone-first, on-device subscription-audit tool for finance teams and business 
 
 ## Try it in 30 seconds
 
-Open `subscription-auditor.html` and click **Load sample data → Add this source → Detect subscriptions**. Walk the six steps to see the full flow before using real data.
+Open `index.html` and click **Load sample data → Add this source → Detect subscriptions**. Walk the six steps to see the full flow before using real data.
+
+## Put it on the web (free)
+
+It's static files, so hosting is free and takes a minute:
+
+- **Easiest (no account/coding):** go to [app.netlify.com/drop](https://app.netlify.com/drop) and drag the whole `subscription-audit` folder in. You instantly get a live `https://…netlify.app` URL that works on any phone, installs as an app, and you can send to clients.
+- **Already on GitHub:** enable **GitHub Pages** in the repo settings (Settings → Pages), pointing at this folder.
+- **Also fine:** Vercel, Cloudflare Pages, or any static host.
+
+Serving over `https` (not a double-clicked file) is what unlocks phone-install and offline.
 
 ## Privacy by design
 

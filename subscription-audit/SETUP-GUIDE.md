@@ -14,9 +14,11 @@ A 10-minute guide to running your subscription audit. No installation, no accoun
 
 ## Step 1 — Open the tool
 
-1. Save `subscription-auditor.html` anywhere on your computer (Desktop or Downloads is fine).
-2. **Double-click it.** It opens in your default browser (Chrome, Edge, Safari, or Firefox — all work).
+1. Save `index.html` (and the `manifest.webmanifest`, `sw.js`, `icon.svg` files that come with it) anywhere on your computer.
+2. **Double-click `index.html`.** It opens in your default browser (Chrome, Edge, Safari, or Firefox — all work).
 3. That's it. There is nothing to install.
+
+> To use it on your **phone** and install it as an app, it needs to be on the web (an `https://` link), not a double-clicked file. The quickest way: drag the whole folder into [app.netlify.com/drop](https://app.netlify.com/drop) — you get a free live link in seconds.
 
 > Prefer a specific browser? Right-click the file → *Open with* → pick your browser.
 
