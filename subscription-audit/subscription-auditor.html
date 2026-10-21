@@ -1,0 +1,1070 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Subscription Auditor</title>
+<meta name="description" content="A private, on-device subscription audit tool. Your bank data never leaves your phone." />
+<meta name="theme-color" content="#2f5fe0" />
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="apple-touch-icon" href="icon.svg" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="Sub Auditor" />
+<style>
+  :root{
+    --bg:#f4f6fb; --panel:#ffffff; --ink:#111827; --muted:#5b6472;
+    --line:#e4e8f0; --brand:#2f5fe0; --brand-ink:#1b3fa8;
+    --good:#0f8a5f; --good-bg:#e4f7ee; --warn:#b4690e; --warn-bg:#fdf0db;
+    --bad:#c22f3d; --bad-bg:#fde7e9; --chip:#eef2fb; --shadow:0 1px 2px rgba(16,24,40,.06),0 8px 24px rgba(16,24,40,.06);
+    --r:14px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#0d1117; --panel:#161b24; --ink:#e9edf4; --muted:#9aa5b5;
+      --line:#262d3a; --brand:#6d94ff; --brand-ink:#9db6ff; --chip:#1c2330;
+      --good:#49d19a; --good-bg:#10271f; --warn:#e0a83d; --warn-bg:#2a2112;
+      --bad:#f0808d; --bad-bg:#2a1518; --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.3);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0d1117; --panel:#161b24; --ink:#e9edf4; --muted:#9aa5b5;
+    --line:#262d3a; --brand:#6d94ff; --brand-ink:#9db6ff; --chip:#1c2330;
+    --good:#49d19a; --good-bg:#10271f; --warn:#e0a83d; --warn-bg:#2a2112;
+    --bad:#f0808d; --bad-bg:#2a1518; --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.3);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{background:var(--bg);color:var(--ink);font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-text-size-adjust:100%}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 16px 80px}
+  header.top{padding:22px 0 10px}
+  .brand{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .logo{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,var(--brand),#8a2fe0);display:grid;place-items:center;color:#fff;font-weight:800;flex:0 0 auto}
+  h1{font-size:21px;margin:0;letter-spacing:-.2px}
+  .sub{color:var(--muted);font-size:13px;margin-top:2px}
+  .privacy{margin:14px 0 8px;background:var(--good-bg);border:1px solid color-mix(in srgb,var(--good) 35%,transparent);color:var(--ink);border-radius:12px;padding:10px 14px;font-size:13px;display:flex;gap:10px;align-items:flex-start}
+  .privacy b{color:var(--good)}
+  nav.steps{display:flex;gap:6px;flex-wrap:wrap;margin:18px 0 12px;position:sticky;top:0;background:var(--bg);padding:8px 0;z-index:5}
+  .step{appearance:none;border:1px solid var(--line);background:var(--panel);color:var(--muted);padding:8px 13px;border-radius:999px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:7px}
+  .step .n{width:19px;height:19px;border-radius:50%;background:var(--chip);color:var(--muted);display:grid;place-items:center;font-size:11px;font-weight:800}
+  .step[aria-current="true"]{border-color:var(--brand);color:var(--brand-ink);background:color-mix(in srgb,var(--brand) 8%,var(--panel))}
+  .step[aria-current="true"] .n{background:var(--brand);color:#fff}
+  .step:disabled{opacity:.45;cursor:not-allowed}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:20px;margin-bottom:16px}
+  .panel h2{margin:0 0 4px;font-size:18px;letter-spacing:-.2px}
+  .panel h3{margin:18px 0 8px;font-size:15px}
+  .panel p.lead{color:var(--muted);margin:0 0 16px}
+  .screen{display:none}
+  .screen.active{display:block}
+  label.fld{display:block;font-weight:600;font-size:13px;margin:0 0 6px}
+  textarea,select,input[type=text],input[type=number]{width:100%;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+  textarea{min-height:140px;resize:vertical;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px}
+  .row{display:flex;gap:12px;flex-wrap:wrap}
+  .row>*{flex:1 1 200px}
+  .btn{appearance:none;border:1px solid var(--brand);background:var(--brand);color:#fff;font:inherit;font-weight:600;padding:10px 16px;border-radius:10px;cursor:pointer}
+  .btn:hover{filter:brightness(1.05)}
+  .btn.ghost{background:transparent;color:var(--brand-ink);border-color:var(--line)}
+  .btn.sm{padding:6px 11px;font-size:13px}
+  .btn.danger{background:transparent;border-color:color-mix(in srgb,var(--bad) 50%,transparent);color:var(--bad)}
+  .btnbar{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;align-items:center}
+  .muted{color:var(--muted)}
+  .hint{font-size:12.5px;color:var(--muted);margin:6px 0 0}
+  details.guide{border:1px solid var(--line);border-radius:10px;padding:0 14px;margin:12px 0}
+  details.guide>summary{cursor:pointer;font-weight:600;padding:12px 0;list-style:none}
+  details.guide>summary::-webkit-details-marker{display:none}
+  details.guide>summary::before{content:"▸ ";color:var(--brand)}
+  details.guide[open]>summary::before{content:"▾ "}
+  details.guide .body{padding:0 0 14px;color:var(--muted);font-size:13.5px}
+  details.guide code{background:var(--chip);padding:1px 6px;border-radius:5px;font-size:12px}
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:700}
+  tbody tr:hover{background:color-mix(in srgb,var(--brand) 4%,transparent)}
+  .num{text-align:right;font-variant-numeric:tabular-nums}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:4px 0 8px}
+  .kpi{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:14px}
+  .kpi .v{font-size:23px;font-weight:800;letter-spacing:-.5px;font-variant-numeric:tabular-nums}
+  .kpi .k{font-size:12px;color:var(--muted);margin-top:2px}
+  .kpi.good .v{color:var(--good)} .kpi.bad .v{color:var(--bad)} .kpi.brand .v{color:var(--brand-ink)}
+  .tag{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;margin:2px 4px 2px 0;white-space:nowrap}
+  .tag.warn{background:var(--warn-bg);color:var(--warn)} .tag.bad{background:var(--bad-bg);color:var(--bad)} .tag.good{background:var(--good-bg);color:var(--good)} .tag.info{background:var(--chip);color:var(--muted)}
+  .cat{display:inline-flex;align-items:center;gap:6px}
+  .dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto}
+  .bars{display:flex;flex-direction:column;gap:8px;margin-top:6px}
+  .bar-row{display:grid;grid-template-columns:130px 1fr 92px;align-items:center;gap:10px;font-size:13px}
+  .bar-track{background:var(--chip);border-radius:6px;height:16px;overflow:hidden}
+  .bar-fill{height:100%;border-radius:6px}
+  .empty{text-align:center;color:var(--muted);padding:34px 10px}
+  .flagcard{border:1px solid var(--line);border-left-width:4px;border-radius:10px;padding:12px 14px;margin-bottom:10px}
+  .flagcard.bad{border-left-color:var(--bad)} .flagcard.warn{border-left-color:var(--warn)} .flagcard.good{border-left-color:var(--good)}
+  .flagcard h4{margin:0 0 3px;font-size:14px} .flagcard p{margin:0;font-size:13px;color:var(--muted)}
+  .checkline{display:flex;gap:9px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--line)}
+  .checkline input{margin-top:3px;flex:0 0 auto;width:16px;height:16px}
+  .modal-bg{position:fixed;inset:0;background:rgba(5,10,20,.55);display:none;align-items:center;justify-content:center;padding:16px;z-index:40}
+  .modal-bg.open{display:flex}
+  .modal{background:var(--panel);border-radius:14px;max-width:620px;width:100%;max-height:88vh;overflow:auto;box-shadow:var(--shadow);padding:22px}
+  .modal h3{margin:0 0 4px}
+  .steplist{margin:8px 0 0;padding-left:20px} .steplist li{margin:5px 0}
+  .mail{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px;font-size:13px;white-space:pre-wrap;font-family:ui-monospace,Menlo,Consolas,monospace}
+  .x{float:right;cursor:pointer;color:var(--muted);font-size:22px;line-height:1;border:none;background:none}
+  .inline{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  select.statusel{width:auto;padding:5px 8px;font-size:12.5px}
+  .foot{color:var(--muted);font-size:12px;text-align:center;margin-top:24px}
+  .toggle{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;color:var(--muted)}
+  @media print{nav.steps,.btnbar,.privacy,.toggle,header.top .sub{display:none!important}.panel{box-shadow:none;break-inside:avoid}.screen{display:block!important}}
+  @media (max-width:560px){.bar-row{grid-template-columns:90px 1fr 70px}.kpi .v{font-size:20px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <div class="logo">₹</div>
+      <div>
+        <h1>Subscription Auditor</h1>
+        <div class="sub">Find every recurring charge, kill the money drains, keep the receipts.</div>
+      </div>
+      <label class="toggle" style="margin-left:auto">
+        <input type="checkbox" id="rememberToggle"> Remember my data on this device
+      </label>
+    </div>
+    <div class="privacy">
+      <span>🔒</span>
+      <div><b>Your data stays on this computer.</b> Everything runs inside your browser. Nothing is uploaded, sent, or shared — there is no server. Close the tab and, unless you tick “remember”, it’s gone.</div>
+    </div>
+  </header>
+
+  <nav class="steps" id="nav">
+    <button class="step" data-go="intake" aria-current="true"><span class="n">1</span> Add data</button>
+    <button class="step" data-go="review" disabled><span class="n">2</span> Review subscriptions</button>
+    <button class="step" data-go="drains" disabled><span class="n">3</span> Money drains</button>
+    <button class="step" data-go="usage" disabled><span class="n">4</span> Usage check</button>
+    <button class="step" data-go="dashboard" disabled><span class="n">5</span> Dashboard</button>
+    <button class="step" data-go="cancel" disabled><span class="n">6</span> Cancel &amp; save</button>
+  </nav>
+
+  <!-- 1. INTAKE -->
+  <section class="screen active" id="screen-intake">
+    <div class="panel">
+      <h2>1 · Add your transaction data</h2>
+      <p class="lead">Paste or upload your statements below. The tool reads debits (money going out) and ignores the rest. You can add several sources — bank, cards, UPI — and audit them together.</p>
+
+      <details class="guide">
+        <summary>Where do I get each file? (bank statement, cards, UPI)</summary>
+        <div class="body">
+          <p><b>Bank account statement (best source):</b> Net banking → Accounts → Statement → export <b>CSV / Excel</b> for the last 12 months. In the mobile app, look for “Download statement”. Prefer CSV; if you only get a PDF, open it and copy-paste the transaction rows into the box.</p>
+          <p><b>Credit / debit card statement:</b> Card issuer portal or app → Statements → download CSV or PDF for each month. Many subscriptions sit on cards, not the bank account, so include these.</p>
+          <p><b>UPI AutoPay / mandate alerts:</b> In your UPI app (GPay, PhonePe, Paytm, BHIM) open <b>Autopay / Mandates</b> and the transaction history. You can paste the SMS/email debit alerts too — one line each, e.g. <code>12/09/2025 Netflix 649 debited</code>.</p>
+          <p>12 months of history gives the most accurate cadence and price-hike detection. 3 months still works.</p>
+        </div>
+      </details>
+
+      <h3>Paste statement text or CSV</h3>
+      <textarea id="pasteBox" placeholder="Paste CSV rows or raw statement lines here. One transaction per line. Date, description, and amount in any order — the tool figures it out."></textarea>
+      <div class="btnbar">
+        <label class="btn ghost sm" style="position:relative;overflow:hidden">
+          Upload CSV file…
+          <input type="file" id="fileInput" accept=".csv,.txt" style="position:absolute;inset:0;opacity:0;cursor:pointer">
+        </label>
+        <button class="btn ghost sm" id="loadSample">Load sample data</button>
+        <span class="hint" id="pasteStatus"></span>
+      </div>
+
+      <div id="mapWrap" style="display:none">
+        <h3>Check the columns</h3>
+        <p class="hint">We auto-detected the columns below. Fix any that look wrong, then add the source.</p>
+        <div class="row">
+          <div><label class="fld">Date column</label><select id="colDate"></select></div>
+          <div><label class="fld">Description column</label><select id="colDesc"></select></div>
+          <div><label class="fld">Amount column</label><select id="colAmt"></select></div>
+          <div><label class="fld">Debit / Credit column (optional)</label><select id="colDrCr"></select></div>
+        </div>
+        <p class="hint" id="mapPreview"></p>
+      </div>
+
+      <div class="btnbar">
+        <button class="btn" id="addSource">Add this source</button>
+        <button class="btn ghost" id="clearAll">Clear everything</button>
+      </div>
+
+      <div id="sourceList"></div>
+
+      <div class="btnbar">
+        <button class="btn" id="toReview" disabled>Detect subscriptions →</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. REVIEW -->
+  <section class="screen" id="screen-review">
+    <div class="panel">
+      <h2>2 · Recurring charges we found</h2>
+      <p class="lead">We cleaned up messy merchant names, grouped charges, and worked out how often each one bills. Confirm anything that looks off — you can change the merchant name, cadence, or mark a row as “not a subscription”.</p>
+      <div class="kpis" id="reviewKpis"></div>
+      <div id="reviewTableWrap"></div>
+      <div class="btnbar">
+        <button class="btn ghost" data-go="intake">← Add more data</button>
+        <button class="btn" data-go="drains">See money drains →</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. DRAINS -->
+  <section class="screen" id="screen-drains">
+    <div class="panel">
+      <h2>3 · Money drains</h2>
+      <p class="lead">These are the charges worth a second look, ranked by how much they cost you per year.</p>
+      <div id="drainList"></div>
+      <div class="btnbar">
+        <button class="btn ghost" data-go="review">← Review</button>
+        <button class="btn" data-go="usage">Check usage →</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. USAGE -->
+  <section class="screen" id="screen-usage">
+    <div class="panel">
+      <h2>4 · Usage check <span class="muted" style="font-size:13px;font-weight:400">(optional)</span></h2>
+      <p class="lead">Add how many seats you pay for and how many people actually use each tool. We’ll flag unused seats, dead tools, and show cost per active user — ranked by annual rupee impact.</p>
+      <details class="guide">
+        <summary>What to paste here</summary>
+        <div class="body">One tool per line: <code>tool, seats paid, active users</code>. Example:<br>
+        <code>Slack, 25, 9</code> &nbsp; <code>Zoom, 10, 2</code> &nbsp; <code>Adobe Creative Cloud, 5, 0</code><br>
+        Get seat counts from each tool’s admin/billing page and active users from its usage or “last active” report.</div>
+      </details>
+      <textarea id="usageBox" placeholder="Slack, 25, 9&#10;Zoom, 10, 2&#10;Adobe Creative Cloud, 5, 0"></textarea>
+      <div class="btnbar">
+        <button class="btn" id="applyUsage">Analyse usage</button>
+        <button class="btn ghost sm" id="sampleUsage">Load sample usage</button>
+      </div>
+      <div id="usageResult"></div>
+      <div class="btnbar">
+        <button class="btn ghost" data-go="drains">← Money drains</button>
+        <button class="btn" data-go="dashboard">Open dashboard →</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. DASHBOARD -->
+  <section class="screen" id="screen-dashboard">
+    <div class="panel">
+      <h2>5 · Dashboard</h2>
+      <p class="lead">Everything you’re paying for, what it costs, and when it renews next.</p>
+      <div class="kpis" id="dashKpis"></div>
+      <h3>Spend by category (per year)</h3>
+      <div class="bars" id="catBars"></div>
+      <h3>All subscriptions</h3>
+      <div id="dashTableWrap"></div>
+      <div class="btnbar">
+        <button class="btn ghost sm" id="exportJson">Download report (JSON)</button>
+        <button class="btn ghost sm" id="printReport">Print / save as PDF</button>
+        <button class="btn" data-go="cancel">Cancellation assist →</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6. CANCEL -->
+  <section class="screen" id="screen-cancel">
+    <div class="panel">
+      <h2>6 · Cancellation assist</h2>
+      <p class="lead">For each thing you want gone: step-by-step cancellation, a ready-to-send email, and how to kill the UPI AutoPay / card mandate so it can’t silently bill you again. <b>Nothing is cancelled for you</b> — you sign off and act.</p>
+      <div class="kpis" id="cancelKpis"></div>
+      <h3>Pick what to cancel</h3>
+      <p class="hint">Tick a subscription, review the steps, then confirm sign-off. Approved items count toward your realised savings.</p>
+      <div id="cancelList"></div>
+      <div class="btnbar">
+        <button class="btn ghost" data-go="dashboard">← Dashboard</button>
+        <button class="btn ghost sm" id="exportActions">Download action plan</button>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>📲 Phone reminders</h2>
+      <p class="lead">Add your renewal dates to your phone’s calendar. Your phone then alerts you ~3 days before each charge, so you can cancel in time. No account, no server — the reminders live in your own calendar and nothing is sent anywhere.</p>
+      <div class="btnbar">
+        <button class="btn" id="icsAll">Add all renewals to my calendar</button>
+        <button class="btn ghost" id="icsFlagged">Only flagged / to-cancel</button>
+        <button class="btn ghost sm" id="enableNotif">Enable in-app alerts</button>
+      </div>
+      <p class="hint" id="remindStatus">Tip: open the downloaded <code>.ics</code> file on your phone — it drops straight into your calendar and reminds you before every renewal.</p>
+    </div>
+  </section>
+
+  <div class="foot">Subscription Auditor · runs entirely in your browser · v1.0</div>
+</div>
+
+<!-- cancellation modal -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal" id="modal"></div>
+</div>
+
+<script>
+"use strict";
+/* ============================================================
+   Subscription Auditor — single-file, client-side only.
+   No network calls. No external libraries. Data stays local.
+   ============================================================ */
+
+/* ---------- state ---------- */
+const S = {
+  sources: [],      // {id,name,count,txns:[{date,desc,amount}]}
+  parsed: null,     // staging: {headers, rows, map, mode}
+  subs: [],         // detected subscription groups
+  usage: {},        // normKey -> {seats, active}
+  remember: false
+};
+const CUR = new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:0});
+const money = n => CUR.format(Math.round(n||0));
+const $ = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+
+/* ---------- merchant knowledge base ----------
+   Each entry: match tokens -> canonical name, category, cancellation guide. */
+const CATS = {
+  Streaming:'#e0432f', Music:'#8a2fe0', Software:'#2f5fe0', Cloud:'#0f8a5f',
+  Productivity:'#b4690e', News:'#5b6472', Telecom:'#00a3a3', Fitness:'#d13f8a',
+  Gaming:'#6d3fd1', Education:'#c28a0e', Food:'#e07a2f', Finance:'#2f8ae0', Other:'#8a93a3'
+};
+const KB = [
+  {k:['netflix'],name:'Netflix',cat:'Streaming',cancel:['Open netflix.com → Account → Membership','Click “Cancel Membership” and confirm','Access continues until the end of the paid period']},
+  {k:['hotstar','disney'],name:'Disney+ Hotstar',cat:'Streaming',cancel:['Open the Hotstar app/site → My Account → Subscription','Choose Cancel / Manage and turn off auto-renew','If billed via Apple/Google, cancel inside that store instead']},
+  {k:['prime','amazon prime','amznprime'],name:'Amazon Prime',cat:'Streaming',cancel:['amazon.in → Prime → Manage Membership','Click “End Membership” and confirm','Turn off auto-renew']},
+  {k:['spotify'],name:'Spotify',cat:'Music',cancel:['spotify.com → Account → Your Plan','Click “Change plan” → Cancel Premium','Reverts to free at period end']},
+  {k:['youtube','ytpremium','google yt'],name:'YouTube Premium',cat:'Streaming',cancel:['youtube.com → Paid memberships','Manage membership → Deactivate','Confirm cancellation']},
+  {k:['sonyliv','sony liv'],name:'SonyLIV',cat:'Streaming',cancel:['SonyLIV app → Settings → Subscription → Cancel','If via store billing, cancel in Apple/Google']},
+  {k:['zee5'],name:'ZEE5',cat:'Streaming',cancel:['ZEE5 → My Subscription → Cancel / turn off auto-renew']},
+  {k:['google one','googleone','google storage','g one'],name:'Google One',cat:'Cloud',cancel:['one.google.com → Settings → Cancel membership']},
+  {k:['icloud','apple.com/bill','apple services','apple one'],name:'Apple iCloud/Services',cat:'Cloud',cancel:['iPhone → Settings → your name → Subscriptions','Select the plan → Cancel Subscription']},
+  {k:['dropbox'],name:'Dropbox',cat:'Cloud',cancel:['dropbox.com → Settings → Plan → Cancel plan']},
+  {k:['adobe','creativecloud','creative cloud'],name:'Adobe Creative Cloud',cat:'Software',cancel:['account.adobe.com → Plans → Manage plan → Cancel','Note: annual plans may charge an early-termination fee']},
+  {k:['microsoft','msft','office 365','microsoft 365','o365'],name:'Microsoft 365',cat:'Software',cancel:['account.microsoft.com → Services & subscriptions','Select plan → Manage → Turn off recurring billing']},
+  {k:['notion'],name:'Notion',cat:'Productivity',cancel:['notion.so → Settings → Plans → Downgrade/Cancel']},
+  {k:['canva'],name:'Canva',cat:'Productivity',cancel:['canva.com → Account → Billing & plans → Cancel subscription']},
+  {k:['figma'],name:'Figma',cat:'Software',cancel:['figma.com → Admin → Billing → remove seats / cancel']},
+  {k:['slack'],name:'Slack',cat:'Productivity',cancel:['slack.com admin → Settings & administration → Billing → Cancel/downgrade']},
+  {k:['zoom'],name:'Zoom',cat:'Productivity',cancel:['zoom.us → Account Management → Billing → Cancel Subscription']},
+  {k:['linkedin'],name:'LinkedIn Premium',cat:'Productivity',cancel:['linkedin.com → Me → Premium features → Manage → Cancel']},
+  {k:['github'],name:'GitHub',cat:'Software',cancel:['github.com → Settings → Billing and plans → Edit → Downgrade']},
+  {k:['openai','chatgpt'],name:'OpenAI / ChatGPT',cat:'Software',cancel:['chatgpt.com → Settings → Subscription → Cancel plan']},
+  {k:['claude','anthropic'],name:'Claude',cat:'Software',cancel:['claude.ai → Settings → Billing → Cancel plan']},
+  {k:['cult','cultfit','curefit'],name:'cult.fit',cat:'Fitness',cancel:['cult.fit app → Profile → Memberships → turn off auto-renew']},
+  {k:['airtel'],name:'Airtel',cat:'Telecom',cancel:['Airtel Thanks app → Manage plan / recharge settings']},
+  {k:['jio'],name:'Jio',cat:'Telecom',cancel:['MyJio app → manage plan / auto-recharge settings']},
+  {k:['hostinger','godaddy','bluehost','hosting','domain'],name:'Web hosting / domain',cat:'Software',cancel:['Provider dashboard → Billing → Auto-renew → turn off']},
+  {k:['swiggy one','swiggyone'],name:'Swiggy One',cat:'Food',cancel:['Swiggy app → Swiggy One → Manage → turn off auto-renew']},
+  {k:['zomato gold','zomato pro'],name:'Zomato',cat:'Food',cancel:['Zomato app → membership → cancel auto-renew']}
+];
+
+/* ---------- parsing ---------- */
+function splitCsvLine(line){
+  const out=[]; let cur='', q=false;
+  for(let i=0;i<line.length;i++){
+    const c=line[i];
+    if(q){ if(c==='"'){ if(line[i+1]==='"'){cur+='"';i++;} else q=false; } else cur+=c; }
+    else { if(c==='"') q=true; else if(c===','||c===';'||c==='\t') {out.push(cur);cur='';} else cur+=c; }
+  }
+  out.push(cur); return out.map(s=>s.trim());
+}
+function looksLikeHeader(cells){
+  const j=cells.join(' ').toLowerCase();
+  return /date|desc|narrat|particular|detail|amount|debit|credit|withdraw|txn|transaction/.test(j)
+         && !cells.some(c=>/^\d{1,3}(,\d{3})*(\.\d+)?$/.test(c));
+}
+function parseDate(s){
+  if(!s) return null; s=s.trim();
+  let m;
+  if((m=s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/))) return new Date(+m[1],+m[2]-1,+m[3]);
+  if((m=s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})/))){
+    let y=+m[3]; if(y<100) y+=2000; return new Date(y,+m[2]-1,+m[1]); // dd/mm/yyyy (India default)
+  }
+  const mon={jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
+  if((m=s.match(/^(\d{1,2})[-\s]([a-z]{3})[a-z]*[-\s](\d{2,4})/i))){
+    let y=+m[3]; if(y<100)y+=2000; return new Date(y,mon[m[2].toLowerCase()],+m[1]);
+  }
+  if((m=s.match(/^([a-z]{3})[a-z]*\s+(\d{1,2}),?\s+(\d{4})/i)))
+    return new Date(+m[3],mon[m[1].toLowerCase()],+m[2]);
+  const d=new Date(s); return isNaN(d)?null:d;
+}
+function parseAmount(s){
+  if(s==null) return NaN;
+  s=String(s).replace(/[₹$€£inr\s]/gi,'').replace(/,/g,'').replace(/\(([\d.]+)\)/,'-$1');
+  const n=parseFloat(s); return isNaN(n)?NaN:n;
+}
+// Build staging structure from pasted/uploaded text.
+function stageText(raw){
+  const lines=raw.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+  if(!lines.length) return null;
+  const delim=/,|;|\t/.test(lines[0]);
+  if(delim){
+    let rows=lines.map(splitCsvLine);
+    const width=Math.round(rows.reduce((a,r)=>a+r.length,0)/rows.length);
+    rows=rows.filter(r=>r.length>=Math.max(2,width-1));
+    let headers, body;
+    if(looksLikeHeader(rows[0])){ headers=rows[0]; body=rows.slice(1); }
+    else { headers=rows[0].map((_,i)=>'Column '+(i+1)); body=rows; }
+    return {mode:'table', headers, rows:body, map:autoMap(headers,body)};
+  }
+  // free text: parse each line heuristically
+  const txns=[];
+  for(const ln of lines){
+    const d=firstDate(ln); const amt=lastAmount(ln);
+    if(d && !isNaN(amt)){
+      let desc=ln.replace(/\d{1,4}[-/.][\d a-z-]{2,}\d{2,4}/i,' ').replace(String(amt),' ');
+      txns.push({date:d, desc:desc, amount:Math.abs(amt)});
+    }
+  }
+  return {mode:'free', txns};
+}
+function firstDate(ln){
+  const m=ln.match(/\d{1,4}[-/.]\d{1,2}[-/.]\d{2,4}|\d{1,2}[-\s][a-z]{3}[a-z]*[-\s]\d{2,4}/i);
+  return m?parseDate(m[0]):null;
+}
+function lastAmount(ln){
+  const ms=ln.match(/-?\d{1,3}(?:,\d{2,3})*(?:\.\d{1,2})?|-?\d+(?:\.\d{1,2})?/g);
+  if(!ms) return NaN;
+  // pick the number that looks most like money (has decimals or commas, or is the largest standalone)
+  let best=NaN, bestScore=-1;
+  for(const raw of ms){
+    const n=parseAmount(raw); if(isNaN(n)||Math.abs(n)<1) continue;
+    let score=Math.abs(n);
+    if(/[.,]/.test(raw)) score*=1.5;
+    if(score>bestScore){bestScore=score;best=n;}
+  }
+  return best;
+}
+function autoMap(headers, rows){
+  const H=headers.map(h=>h.toLowerCase());
+  const find=(re)=>H.findIndex(h=>re.test(h));
+  let date=find(/date|txn date|value date/);
+  let desc=find(/desc|narrat|particular|detail|remark|transaction|merchant|payee/);
+  let amt=find(/amount|debit|withdraw|dr\b/);
+  let drcr=find(/type|dr\/cr|cr\/dr|indicator/);
+  // fallbacks by sampling column content
+  const sample=rows.slice(0,Math.min(rows.length,12));
+  const colScore=(i,fn)=>sample.reduce((a,r)=>a+(fn(r[i]||'')?1:0),0);
+  if(date<0){ let b=-1,bi=-1; headers.forEach((_,i)=>{const s=colScore(i,c=>parseDate(c));if(s>b){b=s;bi=i;}}); date=bi; }
+  if(amt<0){ let b=-1,bi=-1; headers.forEach((_,i)=>{if(i===date)return;const s=colScore(i,c=>!isNaN(parseAmount(c))&&/\d/.test(c));if(s>b){b=s;bi=i;}}); amt=bi; }
+  if(desc<0){ let b=-1,bi=-1; headers.forEach((_,i)=>{if(i===date||i===amt)return;const s=colScore(i,c=>/[a-z]{3,}/i.test(c));if(s>b){b=s;bi=i;}}); desc=bi; }
+  return {date,desc,amt,drcr};
+}
+
+/* ---------- merchant normalisation ---------- */
+const NOISE=/\b(upi|pos|neft|imps|rtgs|ach|ecs|nach|mandate|autopay|auto pay|emandate|e-mandate|si|vps|vpa|ref|txn|trans|transaction|id|no|inb|bil|billdesk|razorpay|payu|ccavenue|paytm|bharatpe|collect|dr|cr|debit|card|purchase|payment|pymt|recurring|subscription|renewal|india|pvt|ltd|limited|technologies|services|digital)\b/gi;
+function normMerchant(descRaw){
+  let s=' '+(descRaw||'').toLowerCase()+' ';
+  // known merchant wins immediately
+  for(const e of KB){ for(const t of e.k){ if(s.includes(t)) return {key:e.name.toLowerCase(), name:e.name, cat:e.cat, kb:e}; } }
+  s=s.replace(/[*#:;|@/\\_\-]+/g,' ')
+     .replace(/\b\d[\d.,]{3,}\b/g,' ')      // long number blobs / ref ids
+     .replace(/\b\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}\b/g,' ')
+     .replace(NOISE,' ')
+     .replace(/\b[a-z0-9]{10,}\b/g,' ')     // long alnum tokens (ref)
+     .replace(/\s+/g,' ').trim();
+  const words=s.split(' ').filter(w=>w.length>1).slice(0,4);
+  let name=words.join(' ').replace(/\b\w/g,c=>c.toUpperCase());
+  if(!name) name=(descRaw||'Unknown').trim().slice(0,28);
+  return {key:name.toLowerCase(), name, cat:'Other', kb:null};
+}
+
+/* ---------- detection ---------- */
+function allTxns(){
+  const t=[];
+  for(const src of S.sources) for(const x of src.txns) t.push(x);
+  return t;
+}
+function median(a){ if(!a.length)return 0; const s=[...a].sort((x,y)=>x-y); const m=s.length>>1; return s.length%2?s[m]:(s[m-1]+s[m])/2; }
+const CAD_DAYS={weekly:7,fortnightly:14,monthly:30,'bi-monthly':60,quarterly:91,'half-yearly':182,annual:365,'one-time':0};
+const CAD_PERYEAR={weekly:52,fortnightly:26,monthly:12,'bi-monthly':6,quarterly:4,'half-yearly':2,annual:1,'one-time':0};
+function cadenceFromGaps(gaps){
+  if(!gaps.length) return {label:'one-time', days:0, perYear:0, estimated:false};
+  const g=median(gaps);
+  const buckets=[[6.5,'weekly',52],[15,'fortnightly',26],[32,'monthly',12],[70,'bi-monthly',6],[100,'quarterly',4],[200,'half-yearly',2],[400,'annual',1]];
+  let best=buckets[2];
+  for(const b of buckets){ if(Math.abs(g-b[0])<Math.abs(g-best[0])) best=b; }
+  return {label:best[1], days:g, perYear:best[2], estimated:false};
+}
+// cadence hint from statement wording (for single-occurrence rows)
+function cadenceFromText(text){
+  const t=(text||'').toLowerCase();
+  if(/\bannual|yearly|per year|p\.?a\b|\/yr|12 ?month/.test(t)) return 'annual';
+  if(/half.?year|semi.?annual|6 ?month/.test(t)) return 'half-yearly';
+  if(/quarter|3 ?month/.test(t)) return 'quarterly';
+  if(/fortnight|bi.?week/.test(t)) return 'fortnightly';
+  if(/week/.test(t)) return 'weekly';
+  if(/month|\bp\.?m\b|\/mo\b|mthly/.test(t)) return 'monthly';
+  return null;
+}
+// Decide cadence for a merchant group. 2+ charges -> measured; 1 charge -> infer from text / known-recurring default.
+function guessCadence(items, text, known){
+  if(items.length>=2){
+    const gaps=[]; for(let i=1;i<items.length;i++) gaps.push((items[i].date-items[i-1].date)/86400000);
+    return cadenceFromGaps(gaps);
+  }
+  const hinted=cadenceFromText(text);
+  if(hinted) return {label:hinted, days:CAD_DAYS[hinted], perYear:CAD_PERYEAR[hinted], estimated:true};
+  if(known) return {label:'monthly', days:30, perYear:12, estimated:true}; // recognised sub, only 1 charge seen
+  return {label:'one-time', days:0, perYear:0, estimated:false};
+}
+const RECUR_HINT=/autopay|auto pay|mandate|e-?mandate|\bsi\b|nach|ecs|standing instruction|recurring|subscription|renewal|membership|premium|annual|monthly|plan/i;
+function detect(){
+  const txns=allTxns().filter(t=>t.amount>0 && t.date);
+  const now = txns.reduce((m,t)=>t.date>m?t.date:m, new Date(0)) || new Date();
+  // group by merchant key, then split by amount clusters (round to nearest 5%)
+  const byMerch={};
+  for(const t of txns){
+    const m=normMerchant(t.desc);
+    (byMerch[m.key]=byMerch[m.key]||{m,items:[]}).items.push(t);
+  }
+  const subs=[];
+  for(const key in byMerch){
+    const {m,items}=byMerch[key];
+    items.sort((a,b)=>a.date-b.date);
+    const merged = items; // treat all same-merchant debits as one subscription line
+    const descText = m.name+' '+merged.map(x=>x.desc).join(' ');
+    const known = !!m.kb || RECUR_HINT.test(descText);
+    const cad = guessCadence(merged, descText, known);
+    const amounts=merged.map(x=>x.amount);
+    const lastAmt=amounts[amounts.length-1];
+    const firstAmt=amounts[0];
+    const annual = lastAmt * cad.perYear;
+    const last=merged[merged.length-1].date, first=merged[0].date;
+    const next = cad.days? new Date(last.getTime()+cad.days*86400000) : null;
+    const recurring = merged.length>=2 || known || cad.label!=='one-time';
+    subs.push({
+      id:'s'+subs.length, key, name:m.name, cat:m.cat, kb:m.kb,
+      count:merged.length, amount:lastAmt, firstAmt, annual,
+      cadence:cad.label, cadDays:Math.round(cad.days), perYear:cad.perYear, estimated:cad.estimated,
+      first, last, next, recurring,
+      status:'keep', signoff:false,
+      sample:merged.slice(-4).map(x=>({d:fmtD(x.date),a:x.amount})),
+      hike: lastAmt>firstAmt*1.05 ? Math.round((lastAmt/firstAmt-1)*100) : 0,
+      flags:[]
+    });
+  }
+  // flags
+  const catCount={};
+  subs.forEach(s=>{ if(s.recurring) catCount[s.cat]=(catCount[s.cat]||0)+1; });
+  const DAY=86400000;
+  for(const s of subs){
+    s.flags=[];
+    if(!s.recurring){ s.flags.push({t:'info',x:'one-off / unconfirmed'}); }
+    if(s.recurring && s.estimated) s.flags.push({t:'info',x:'cadence estimated'});
+    if(s.hike) s.flags.push({t:'bad',x:`price up ${s.hike}%`});
+    if(s.recurring && (now-s.first)/DAY < 75) s.flags.push({t:'warn',x:'new subscription'});
+    if(s.recurring && s.count>=2 && catCount[s.cat]>1 && s.cat!=='Other') s.flags.push({t:'warn',x:'duplicate category'});
+    // trial-to-paid: a near-zero/small first charge, then a normal one
+    if(s.count>=2 && s.firstAmt>0 && s.firstAmt < s.amount*0.4) s.flags.push({t:'warn',x:'trial → paid'});
+    // forgotten / zombie: recurring, but last charge older than ~1.5 cycles (stopped? or just slow) OR long-running & low value
+    if(s.recurring && s.cadDays>0 && (now-s.last)/DAY > s.cadDays*1.6) s.flags.push({t:'info',x:'no recent charge'});
+    if(s.recurring && (now-s.first)/DAY > 330 && s.amount<300) s.flags.push({t:'info',x:'long-running, low value'});
+  }
+  S.subs=subs.sort((a,b)=>b.annual-a.annual);
+  applyUsageFlags();
+}
+function fmtD(d){ return d? d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'2-digit'}) : '—'; }
+
+/* ---------- usage ---------- */
+function parseUsage(raw){
+  const map={};
+  raw.split(/\r?\n/).forEach(ln=>{
+    const p=ln.split(/[,\t;]/).map(x=>x.trim()).filter(x=>x!=='');
+    if(p.length>=3){
+      const name=p[0]; const seats=parseAmount(p[1]); const active=parseAmount(p[2]);
+      if(name && !isNaN(seats)){ map[normMerchant(name).key]={name,seats,active:isNaN(active)?0:active}; }
+    }
+  });
+  return map;
+}
+function applyUsageFlags(){
+  for(const s of S.subs){
+    const u=S.usage[s.key];
+    s.usage=u||null;
+    s.flags=s.flags.filter(f=>!['unused seats','dead tool','low usage'].includes(f.x));
+    if(u){
+      if(u.active===0) s.flags.unshift({t:'bad',x:'dead tool'});
+      else if(u.seats-u.active>0) s.flags.unshift({t:'warn',x:'unused seats'});
+      if(u.active>0 && u.active/u.seats<0.4) s.flags.push({t:'warn',x:'low usage'});
+      s.costPerActive = u.active>0 ? s.annual/u.active : null;
+    }
+  }
+}
+
+/* ---------- savings ---------- */
+function potentialSavings(){ // annual rupees in flagged-but-not-decided items
+  return S.subs.filter(s=>s.recurring && s.status!=='cancel' && (s.flags.some(f=>f.t==='bad'||f.t==='warn')))
+               .reduce((a,s)=>a+s.annual,0);
+}
+function approvedSavings(){ return S.subs.filter(s=>s.status==='cancel'&&s.signoff).reduce((a,s)=>a+s.annual,0); }
+function monthlySpend(){ return S.subs.filter(s=>s.recurring&&s.status!=='cancel').reduce((a,s)=>a+s.annual/12,0); }
+function annualSpend(){ return S.subs.filter(s=>s.recurring).reduce((a,s)=>a+s.annual,0); }
+
+/* ============================================================
+   RENDERING
+   ============================================================ */
+function go(screen){
+  $$('.screen').forEach(s=>s.classList.remove('active'));
+  $('#screen-'+screen).classList.add('active');
+  $$('.step').forEach(b=>b.setAttribute('aria-current', b.dataset.go===screen?'true':'false'));
+  if(screen==='review') renderReview();
+  if(screen==='drains') renderDrains();
+  if(screen==='dashboard') renderDashboard();
+  if(screen==='cancel') renderCancel();
+  if(screen==='usage') renderUsage();
+  window.scrollTo({top:0,behavior:'smooth'});
+  persist();
+}
+function unlock(){ $$('.step').forEach(b=>{ if(b.dataset.go!=='intake') b.disabled = S.subs.length===0; }); $('#toReview').disabled = allTxns().length===0; }
+
+function renderSources(){
+  const el=$('#sourceList');
+  if(!S.sources.length){ el.innerHTML=''; unlock(); return; }
+  el.innerHTML='<h3>Added sources</h3>'+S.sources.map(s=>
+    `<div class="checkline"><div style="flex:1"><b>${esc(s.name)}</b> <span class="muted">— ${s.count} debit${s.count!==1?'s':''} read</span></div>
+     <button class="btn danger sm" data-del="${s.id}">Remove</button></div>`).join('');
+  $$('[data-del]').forEach(b=>b.onclick=()=>{ S.sources=S.sources.filter(x=>x.id!==b.dataset.del); renderSources(); persist(); });
+  unlock();
+}
+
+function renderReview(){
+  const recur=S.subs.filter(s=>s.recurring);
+  $('#reviewKpis').innerHTML=kpi(recur.length,'recurring charges')+kpi(money(annualSpend()),'per year','brand')+
+    kpi(money(monthlySpend()),'per month')+kpi(S.subs.filter(s=>!s.recurring).length,'one-off / unsure');
+  if(!S.subs.length){ $('#reviewTableWrap').innerHTML='<div class="empty">No charges detected. Add data on step 1.</div>'; return; }
+  const rows=S.subs.map(s=>`<tr>
+    <td><input type="text" value="${esc(s.name)}" data-edit="name" data-id="${s.id}" style="font-weight:600;border:none;background:none;padding:0;width:100%"></td>
+    <td>${catDot(s.cat)}</td>
+    <td class="num">${money(s.amount)}</td>
+    <td>${selCad(s)}</td>
+    <td class="num">${money(s.annual)}</td>
+    <td>${fmtD(s.last)}</td>
+    <td>${s.count}×</td>
+    <td>${s.flags.map(f=>tag(f)).join(' ')||'<span class="muted">—</span>'}</td>
+    <td>${selRecur(s)}</td>
+  </tr>`).join('');
+  $('#reviewTableWrap').innerHTML=`<div style="overflow-x:auto"><table>
+    <thead><tr><th>Merchant</th><th>Category</th><th class="num">Amount</th><th>Cadence</th><th class="num">Per year</th><th>Last seen</th><th>Seen</th><th>Flags</th><th>Type</th></tr></thead>
+    <tbody>${rows}</tbody></table></div>`;
+  wireReviewInputs();
+}
+function selCad(s){
+  const opts=['weekly','fortnightly','monthly','bi-monthly','quarterly','half-yearly','annual','one-time'];
+  return `<select class="statusel" data-edit="cadence" data-id="${s.id}">${opts.map(o=>`<option ${o===s.cadence?'selected':''}>${o}</option>`).join('')}</select>`;
+}
+function selRecur(s){
+  return `<select class="statusel" data-edit="recurring" data-id="${s.id}">
+    <option value="1" ${s.recurring?'selected':''}>subscription</option>
+    <option value="0" ${!s.recurring?'selected':''}>not a sub</option></select>`;
+}
+function wireReviewInputs(){
+  const perYear={weekly:52,fortnightly:26,monthly:12,'bi-monthly':6,quarterly:4,'half-yearly':2,annual:1,'one-time':0};
+  $$('[data-edit]').forEach(inp=>{
+    const handler=()=>{
+      const s=S.subs.find(x=>x.id===inp.dataset.id); if(!s) return;
+      const f=inp.dataset.edit;
+      if(f==='name') s.name=inp.value;
+      if(f==='cadence'){ s.cadence=inp.value; s.perYear=perYear[inp.value]; s.annual=s.amount*s.perYear; }
+      if(f==='recurring') s.recurring=inp.value==='1';
+      if(f!=='name'){ detectFlagsOnly(); renderReview(); }
+      persist();
+    };
+    inp.addEventListener(inp.tagName==='SELECT'?'change':'input', handler);
+  });
+}
+function detectFlagsOnly(){ // recompute category duplicate flags after edits
+  const catCount={}; S.subs.forEach(s=>{ if(s.recurring)catCount[s.cat]=(catCount[s.cat]||0)+1; });
+  S.subs.forEach(s=>{
+    s.flags=s.flags.filter(f=>f.x!=='duplicate category'&&f.x!=='one-off / unconfirmed');
+    if(s.recurring && s.count>=2 && catCount[s.cat]>1 && s.cat!=='Other' && !s.flags.some(f=>f.x==='duplicate category')) s.flags.push({t:'warn',x:'duplicate category'});
+    if(!s.recurring && !s.flags.some(f=>f.x==='one-off / unconfirmed')) s.flags.push({t:'info',x:'one-off / unconfirmed'});
+  });
+  S.subs.sort((a,b)=>b.annual-a.annual);
+}
+
+function renderDrains(){
+  const flagged=S.subs.filter(s=>s.flags.some(f=>f.t==='bad'||f.t==='warn')).sort((a,b)=>b.annual-a.annual);
+  const el=$('#drainList');
+  if(!flagged.length){ el.innerHTML='<div class="empty">No obvious money drains 🎉 Everything looks intentional. You can still review the full list on the dashboard.</div>'; return; }
+  el.innerHTML=
+    `<div class="kpis">${kpi(flagged.length,'items flagged','bad')}${kpi(money(flagged.reduce((a,s)=>a+s.annual,0)),'at stake / year','bad')}</div>`+
+    flagged.map(s=>{
+      const worst=s.flags.some(f=>f.t==='bad')?'bad':'warn';
+      const reasons=s.flags.filter(f=>f.t!=='info').map(f=>explain(f.x,s)).join(' ');
+      return `<div class="flagcard ${worst}">
+        <h4>${esc(s.name)} ${s.flags.map(tag).join(' ')}</h4>
+        <p>${money(s.amount)} ${s.cadence} · <b>${money(s.annual)}/yr</b> · ${catDot(s.cat)}</p>
+        <p style="margin-top:6px">${reasons}</p>
+      </div>`;
+    }).join('');
+}
+function explain(x,s){
+  const map={
+    'price up':'The amount charged rose over time — check if the new price is worth it.',
+    'new subscription':'First charged recently — make sure this was intentional and not a trial converting.',
+    'duplicate category':`You pay for more than one ${s.cat.toLowerCase()} tool — consolidate to one.`,
+    'trial → paid':'A small/zero first charge became a full charge — a free trial likely converted to paid.',
+    'unused seats':`You pay for seats nobody uses${s.usage?` (${s.usage.seats} paid, ${s.usage.active} active)`:''}.`,
+    'dead tool':'Nobody is using this tool — a prime candidate to cancel.',
+    'low usage':'Fewer than 40% of paid seats are active.'
+  };
+  return map[Object.keys(map).find(k=>x.startsWith(k))||x] || '';
+}
+
+function renderUsage(){
+  const have=Object.keys(S.usage).length;
+  const withU=S.subs.filter(s=>s.usage);
+  const el=$('#usageResult');
+  if(!have){ el.innerHTML=''; return; }
+  withU.sort((a,b)=>b.annual-a.annual);
+  const unmatched=Object.values(S.usage).filter(u=>!S.subs.some(s=>s.key===normMerchant(u.name).key));
+  el.innerHTML=`<h3>Usage findings</h3>`+
+    (withU.length?`<div style="overflow-x:auto"><table>
+      <thead><tr><th>Tool</th><th class="num">Seats paid</th><th class="num">Active</th><th class="num">Unused</th><th class="num">Annual cost</th><th class="num">Cost / active user</th><th>Verdict</th></tr></thead>
+      <tbody>${withU.map(s=>{const u=s.usage;const unused=Math.max(0,u.seats-u.active);
+        const verdict=u.active===0?'<span class="tag bad">cancel — dead</span>':unused>0?`<span class="tag warn">drop ${unused} seat${unused>1?'s':''}</span>`:'<span class="tag good">right-sized</span>';
+        return `<tr><td><b>${esc(s.name)}</b></td><td class="num">${u.seats}</td><td class="num">${u.active}</td>
+        <td class="num">${unused}</td><td class="num">${money(s.annual)}</td>
+        <td class="num">${s.costPerActive?money(s.costPerActive):'—'}</td><td>${verdict}</td></tr>`;}).join('')}</tbody></table></div>`
+      :'<div class="empty">None of your usage rows matched a detected subscription. Check the tool names match the statement.</div>')+
+    (unmatched.length?`<p class="hint">Not matched to any charge (add their statements to audit cost): ${unmatched.map(u=>esc(u.name)).join(', ')}</p>`:'');
+}
+
+function renderDashboard(){
+  const recur=S.subs.filter(s=>s.recurring);
+  $('#dashKpis').innerHTML=
+    kpi(recur.length,'active subscriptions')+
+    kpi(money(monthlySpend()),'monthly spend','brand')+
+    kpi(money(annualSpend()),'annual spend')+
+    kpi(money(potentialSavings()),'flagged spend / yr','bad')+
+    kpi(money(approvedSavings()),'approved to cut','good');
+  // category bars
+  const byCat={}; recur.forEach(s=>byCat[s.cat]=(byCat[s.cat]||0)+s.annual);
+  const max=Math.max(1,...Object.values(byCat));
+  const bars=Object.entries(byCat).sort((a,b)=>b[1]-a[1]).map(([c,v])=>
+    `<div class="bar-row"><div class="cat"><span class="dot" style="background:${CATS[c]||CATS.Other}"></span>${c}</div>
+     <div class="bar-track"><div class="bar-fill" style="width:${Math.max(4,v/max*100)}%;background:${CATS[c]||CATS.Other}"></div></div>
+     <div class="num">${money(v)}</div></div>`).join('');
+  $('#catBars').innerHTML=bars||'<div class="empty">No recurring spend yet.</div>';
+  // table
+  const rows=S.subs.map(s=>`<tr>
+    <td><b>${esc(s.name)}</b>${s.recurring?'':' <span class="tag info">one-off</span>'}</td>
+    <td>${catDot(s.cat)}</td>
+    <td class="num">${money(s.amount)}</td>
+    <td>${s.cadence}</td>
+    <td class="num">${s.recurring?money(s.annual):'—'}</td>
+    <td>${s.recurring&&s.next?fmtD(s.next):'—'}</td>
+    <td>${s.flags.map(tag).join(' ')||'—'}</td>
+    <td>${s.status==='cancel'?(s.signoff?'<span class="tag good">cancelling ✓</span>':'<span class="tag warn">to cancel</span>'):'<span class="tag info">keep</span>'}</td>
+  </tr>`).join('');
+  $('#dashTableWrap').innerHTML=`<div style="overflow-x:auto"><table>
+    <thead><tr><th>Subscription</th><th>Category</th><th class="num">Amount</th><th>Cadence</th><th class="num">Per year</th><th>Next renewal</th><th>Flags</th><th>Status</th></tr></thead>
+    <tbody>${rows}</tbody></table></div>`;
+}
+
+function renderCancel(){
+  $('#cancelKpis').innerHTML=
+    kpi(S.subs.filter(s=>s.status==='cancel').length,'marked to cancel','warn')+
+    kpi(S.subs.filter(s=>s.status==='cancel'&&s.signoff).length,'signed off','good')+
+    kpi(money(approvedSavings()),'approved savings / yr','good');
+  const list=S.subs.filter(s=>s.recurring).sort((a,b)=>b.annual-a.annual);
+  const el=$('#cancelList');
+  if(!list.length){ el.innerHTML='<div class="empty">No recurring subscriptions to cancel.</div>'; return; }
+  el.innerHTML=list.map(s=>`<div class="checkline">
+    <input type="checkbox" data-cancel="${s.id}" ${s.status==='cancel'?'checked':''}>
+    <div style="flex:1">
+      <div class="inline"><b>${esc(s.name)}</b> <span class="muted">${money(s.annual)}/yr · ${s.cadence}</span> ${s.flags.map(tag).join(' ')}</div>
+      ${s.status==='cancel'?`<div class="inline" style="margin-top:6px">
+        <button class="btn ghost sm" data-how="${s.id}">How to cancel + email</button>
+        <label class="toggle"><input type="checkbox" data-signoff="${s.id}" ${s.signoff?'checked':''}> I approve cancelling this (sign-off)</label>
+      </div>`:''}
+    </div></div>`).join('');
+  $$('[data-cancel]').forEach(c=>c.onclick=()=>{ const s=S.subs.find(x=>x.id===c.dataset.cancel); s.status=c.checked?'cancel':'keep'; if(!c.checked)s.signoff=false; renderCancel(); persist(); });
+  $$('[data-signoff]').forEach(c=>c.onclick=()=>{ const s=S.subs.find(x=>x.id===c.dataset.signoff); s.signoff=c.checked; renderCancel(); persist(); });
+  $$('[data-how]').forEach(b=>b.onclick=()=>showCancelHelp(b.dataset.how));
+}
+
+function showCancelHelp(id){
+  const s=S.subs.find(x=>x.id===id); if(!s)return;
+  const steps = s.kb? s.kb.cancel : [
+    `Log in to ${s.name}’s website or app`,
+    'Find Account → Billing / Subscription / Membership',
+    'Choose Cancel or turn off auto-renew, and confirm',
+    'Save the confirmation email as proof'];
+  const email=
+`Subject: Cancellation of my ${s.name} subscription
+
+Hello ${s.name} Support,
+
+I want to cancel my subscription with immediate effect and stop any auto-renewal. Please confirm the cancellation in writing and ensure I am not charged again.
+
+Account / registered email: [your email]
+Registered mobile: [your number]
+
+Please also confirm that any auto-debit mandate (UPI AutoPay / card e-mandate) linked to this subscription is cancelled at your end.
+
+Thank you,
+[Your name]`;
+  $('#modal').innerHTML=`<button class="x" id="closeModal">×</button>
+    <h3>Cancel ${esc(s.name)}</h3>
+    <p class="muted">Costs you ${money(s.annual)} a year. Do these in order.</p>
+    <h4 style="margin:14px 0 2px">1 · Cancel at the vendor</h4>
+    <ol class="steplist">${steps.map(x=>`<li>${esc(x)}</li>`).join('')}</ol>
+    <h4 style="margin:16px 0 2px">2 · Kill the auto-debit so it can’t bill again</h4>
+    <ol class="steplist">
+      <li><b>UPI AutoPay:</b> Open your UPI app (GPay / PhonePe / Paytm / BHIM) → <i>Autopay</i> or <i>Mandates</i> → find ${esc(s.name)} → <b>Pause / Cancel mandate</b>.</li>
+      <li><b>Card e-mandate / standing instruction:</b> Net-banking or card app → <i>Manage mandates / SI / e-Mandate</i> → stop the mandate for ${esc(s.name)}. Or call the card helpline and ask to revoke the standing instruction.</li>
+      <li>If you can’t find it, ask your bank to <b>block the specific merchant mandate</b> — they are required to let you.</li>
+    </ol>
+    <h4 style="margin:16px 0 2px">3 · Send the cancellation email</h4>
+    <div class="mail" id="mailText">${esc(email)}</div>
+    <div class="btnbar">
+      <button class="btn sm" id="copyMail">Copy email</button>
+      <label class="toggle"><input type="checkbox" id="modalSign" ${s.signoff?'checked':''}> Mark signed-off (I’ll action this)</label>
+    </div>
+    <p class="hint">Nothing here is sent automatically. You review and act — this is your sign-off step.</p>`;
+  $('#modalBg').classList.add('open');
+  $('#closeModal').onclick=closeModal;
+  $('#copyMail').onclick=()=>{ navigator.clipboard?.writeText(email); $('#copyMail').textContent='Copied ✓'; };
+  $('#modalSign').onclick=e=>{ s.signoff=e.target.checked; renderCancel(); persist(); };
+}
+function closeModal(){ $('#modalBg').classList.remove('open'); }
+
+/* ---------- small render helpers ---------- */
+function kpi(v,k,cls=''){ return `<div class="kpi ${cls}"><div class="v">${v}</div><div class="k">${k}</div></div>`; }
+function tag(f){ return `<span class="tag ${f.t}">${esc(f.x)}</span>`; }
+function catDot(c){ return `<span class="cat"><span class="dot" style="background:${CATS[c]||CATS.Other}"></span>${c}</span>`; }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+/* ============================================================
+   INTAKE wiring
+   ============================================================ */
+function showMap(stage){
+  S.parsed=stage;
+  if(stage.mode==='free'){
+    $('#mapWrap').style.display='none';
+    $('#pasteStatus').textContent = stage.txns.length? `Read ${stage.txns.length} transaction line(s) from free text.` : 'Could not read transactions — need a date and amount on each line.';
+    return;
+  }
+  $('#mapWrap').style.display='block';
+  const opts=(sel)=>stage.headers.map((h,i)=>`<option value="${i}" ${i===sel?'selected':''}>${esc(h)}</option>`).join('');
+  $('#colDate').innerHTML=opts(stage.map.date);
+  $('#colDesc').innerHTML=opts(stage.map.desc);
+  $('#colAmt').innerHTML=opts(stage.map.amt);
+  $('#colDrCr').innerHTML='<option value="-1">— none —</option>'+stage.headers.map((h,i)=>`<option value="${i}" ${i===stage.map.drcr?'selected':''}>${esc(h)}</option>`).join('');
+  $('#pasteStatus').textContent=`Detected ${stage.rows.length} rows, ${stage.headers.length} columns.`;
+  previewMap();
+  ['colDate','colDesc','colAmt','colDrCr'].forEach(id=>$('#'+id).onchange=previewMap);
+}
+function previewMap(){
+  const st=S.parsed; if(!st||st.mode!=='table')return;
+  const di=+$('#colDate').value, ci=+$('#colDesc').value, ai=+$('#colAmt').value;
+  const r=st.rows.find(r=>parseDate(r[di])&&!isNaN(parseAmount(r[ai])))||st.rows[0]||[];
+  $('#mapPreview').innerHTML = r.length? `Example → <b>${esc(fmtD(parseDate(r[di]))||r[di])}</b> · ${esc((r[ci]||'').slice(0,40))} · <b>${money(parseAmount(r[ai]))}</b>` : '';
+}
+function sourceFromStage(name){
+  const st=S.parsed; if(!st) return null;
+  const txns=[];
+  if(st.mode==='free'){ st.txns.forEach(t=>txns.push(t)); }
+  else {
+    const di=+$('#colDate').value, ci=+$('#colDesc').value, ai=+$('#colAmt').value, dci=+$('#colDrCr').value;
+    for(const r of st.rows){
+      const d=parseDate(r[di]); let a=parseAmount(r[ai]); const desc=r[ci]||'';
+      if(!d||isNaN(a)) continue;
+      // decide if this is a debit (money out)
+      let isDebit;
+      if(dci>=0){ isDebit=/d|dr|debit|withdraw/i.test(r[dci]||''); }
+      else { isDebit = a>0; } // single amount column: positive = treat as spend; negatives are credits
+      if(a<0){ isDebit=true; a=Math.abs(a); } // some statements mark debits negative
+      if(!isDebit) continue;
+      txns.push({date:d, desc, amount:Math.abs(a)});
+    }
+  }
+  return {id:'src'+Date.now()+Math.random().toString(36).slice(2,5), name, count:txns.length, txns};
+}
+
+/* ---------- sample data ---------- */
+const SAMPLE_CSV=`Date,Narration,Debit,Type
+05/09/2024,UPI/NETFLIX COM/Payment/HDFC/9823****,499,DR
+06/09/2024,ACH D- SPOTIFY INDIA PVT LTD-SI,119,DR
+12/09/2024,POS 4532 AMAZON PRIME MUMBAI,0,DR
+22/09/2024,NEFT ADOBE SYSTEMS SOFTWARE REF8842,4230,DR
+02/10/2024,UPI/NETFLIX COM/Payment/HDFC/9823****,499,DR
+03/10/2024,ACH D- SPOTIFY INDIA PVT LTD-SI,119,DR
+12/10/2024,POS 4532 AMAZON PRIME MUMBAI,179,DR
+15/10/2024,MANDATE CULT FIT CUREFIT AUTOPAY,1299,DR
+22/10/2024,NEFT ADOBE SYSTEMS SOFTWARE REF8842,4230,DR
+28/10/2024,UPI/GOOGLE ONE STORAGE/GPAY,130,DR
+02/11/2024,UPI/NETFLIX COM/Payment/HDFC/9823****,649,DR
+03/11/2024,ACH D- SPOTIFY INDIA PVT LTD-SI,119,DR
+12/11/2024,POS 4532 AMAZON PRIME MUMBAI,179,DR
+18/11/2024,UPI/DISNEY HOTSTAR/PhonePe/8871,299,DR
+22/11/2024,NEFT ADOBE SYSTEMS SOFTWARE REF8842,4230,DR
+28/11/2024,UPI/GOOGLE ONE STORAGE/GPAY,130,DR
+02/12/2024,UPI/NETFLIX COM/Payment/HDFC/9823****,649,DR
+03/12/2024,ACH D- SPOTIFY INDIA PVT LTD-SI,119,DR
+12/12/2024,POS 4532 AMAZON PRIME MUMBAI,179,DR
+28/12/2024,UPI/GOOGLE ONE STORAGE/GPAY,130,DR
+05/01/2025,ANNUAL LINKEDIN PREMIUM CAREER,15700,DR`;
+const SAMPLE_USAGE=`Adobe Creative Cloud, 5, 1\nNetflix, 1, 1\nCult.fit, 2, 0\nGoogle One, 1, 1`;
+
+/* ---------- persistence (opt-in) ---------- */
+function persist(){
+  if(!S.remember) return;
+  try{ localStorage.setItem('subaudit', JSON.stringify({
+    sources:S.sources.map(s=>({...s,txns:s.txns.map(t=>({date:+t.date,desc:t.desc,amount:t.amount}))})),
+    usageRaw:$('#usageBox').value, remember:true,
+    subEdits:S.subs.map(s=>({key:s.key,name:s.name,cadence:s.cadence,recurring:s.recurring,status:s.status,signoff:s.signoff}))
+  })); }catch(e){}
+}
+function restore(){
+  let d; try{ d=JSON.parse(localStorage.getItem('subaudit')||'null'); }catch(e){ return; }
+  if(!d) return;
+  S.remember=true; $('#rememberToggle').checked=true;
+  S.sources=(d.sources||[]).map(s=>({...s,txns:s.txns.map(t=>({date:new Date(t.date),desc:t.desc,amount:t.amount}))}));
+  if(d.usageRaw) $('#usageBox').value=d.usageRaw;
+  if(S.sources.length){
+    detect();
+    if(d.usageRaw){ S.usage=parseUsage(d.usageRaw); applyUsageFlags(); }
+    (d.subEdits||[]).forEach(e=>{ const s=S.subs.find(x=>x.key===e.key); if(s){Object.assign(s,e);} });
+    detectFlagsOnly();
+  }
+  renderSources();
+}
+
+/* ============================================================
+   EVENTS
+   ============================================================ */
+function stageFromBox(){
+  const raw=$('#pasteBox').value.trim();
+  if(!raw){ $('#pasteStatus').textContent=''; $('#mapWrap').style.display='none'; S.parsed=null; return; }
+  const st=stageText(raw); showMap(st);
+}
+$('#pasteBox').addEventListener('input', debounce(stageFromBox,350));
+$('#fileInput').addEventListener('change',e=>{
+  const f=e.target.files[0]; if(!f)return;
+  const r=new FileReader();
+  r.onload=()=>{ $('#pasteBox').value=r.result; stageFromBox(); if(!$('#pasteBox').value){} };
+  r.readAsText(f);
+});
+$('#loadSample').onclick=()=>{ $('#pasteBox').value=SAMPLE_CSV; stageFromBox(); $('#usageBox').value=SAMPLE_USAGE; };
+$('#sampleUsage').onclick=()=>{ $('#usageBox').value=SAMPLE_USAGE; };
+$('#addSource').onclick=()=>{
+  if(!S.parsed){ alert('Paste or upload a statement first.'); return; }
+  const n = S.sources.length+1;
+  const src=sourceFromStage('Source '+n+' ('+new Date().toLocaleDateString('en-IN')+')');
+  if(!src||!src.txns.length){ alert('No debit transactions could be read. Check the column mapping.'); return; }
+  S.sources.push(src);
+  $('#pasteBox').value=''; $('#mapWrap').style.display='none'; S.parsed=null; $('#pasteStatus').textContent='';
+  renderSources(); persist();
+};
+$('#clearAll').onclick=()=>{
+  if(!confirm('Remove all added data and start over?')) return;
+  S.sources=[]; S.subs=[]; S.usage={}; S.parsed=null;
+  $('#pasteBox').value=''; $('#usageBox').value=''; $('#mapWrap').style.display='none'; $('#pasteStatus').textContent='';
+  try{ localStorage.removeItem('subaudit'); }catch(e){}
+  renderSources();
+};
+$('#toReview').onclick=()=>{ detect(); unlock(); go('review'); };
+$('#applyUsage').onclick=()=>{ S.usage=parseUsage($('#usageBox').value); applyUsageFlags(); renderUsage(); persist(); };
+$('#exportJson').onclick=()=>downloadReport();
+$('#exportActions').onclick=()=>downloadActions();
+$('#printReport').onclick=()=>window.print();
+$('#icsAll').onclick=()=>{
+  const subs=S.subs.filter(s=>s.recurring);
+  if(!subs.length){ alert('No recurring subscriptions to remind about yet.'); return; }
+  dl('subscription-renewals.ics', buildICS(subs), 'text/calendar');
+  $('#remindStatus').textContent=`Downloaded reminders for ${subs.length} subscription(s). Open the .ics file on your phone to add them to your calendar — you’ll be alerted 3 days before each renewal.`;
+};
+$('#icsFlagged').onclick=()=>{
+  const subs=S.subs.filter(s=>s.recurring && (s.status==='cancel'||s.flags.some(f=>f.t==='bad'||f.t==='warn')));
+  if(!subs.length){ alert('Nothing flagged or marked to cancel yet.'); return; }
+  dl('subscriptions-to-review.ics', buildICS(subs), 'text/calendar');
+  $('#remindStatus').textContent=`Downloaded reminders for ${subs.length} flagged item(s). Add the .ics to your phone calendar for alerts before each one renews.`;
+};
+$('#enableNotif').onclick=async()=>{
+  if(!('Notification' in window)){ $('#remindStatus').textContent='This browser doesn’t support in-app alerts — use the calendar reminders instead.'; return; }
+  try{
+    const perm=await Notification.requestPermission();
+    if(perm==='granted'){ new Notification('Subscription Auditor',{body:'Alerts on. For reminders even when this app is closed, add the calendar reminders above.'}); $('#remindStatus').textContent='In-app alerts enabled. Calendar reminders still work best for closed-app alerts.'; }
+    else { $('#remindStatus').textContent='In-app alerts not enabled — the calendar reminders work without any permission.'; }
+  }catch(e){ $('#remindStatus').textContent='Could not enable in-app alerts — use the calendar reminders instead.'; }
+};
+$('#rememberToggle').onclick=e=>{ S.remember=e.target.checked; if(S.remember)persist(); else try{localStorage.removeItem('subaudit');}catch(_){} };
+$('#modalBg').addEventListener('click',e=>{ if(e.target===$('#modalBg')) closeModal(); });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeModal(); });
+
+$$('[data-go]').forEach(b=>{ if(b.classList.contains('step')||b.hasAttribute('data-go')) b.addEventListener('click',()=>{ if(b.disabled)return; go(b.dataset.go); }); });
+
+function downloadReport(){
+  const rep={
+    generated:new Date().toISOString(),
+    summary:{ monthlySpend:Math.round(monthlySpend()), annualSpend:Math.round(annualSpend()),
+      savingsInReach:Math.round(potentialSavings()), approvedSavings:Math.round(approvedSavings()),
+      activeSubscriptions:S.subs.filter(s=>s.recurring).length },
+    subscriptions:S.subs.map(s=>({name:s.name,category:s.cat,amount:s.amount,cadence:s.cadence,
+      annual:Math.round(s.annual),firstSeen:s.first&&fmtD(s.first),lastSeen:fmtD(s.last),
+      nextRenewal:s.next&&fmtD(s.next),timesSeen:s.count,flags:s.flags.map(f=>f.x),
+      status:s.status,signedOff:s.signoff,usage:s.usage||undefined}))
+  };
+  dl('subscription-audit-report.json', JSON.stringify(rep,null,2));
+}
+function downloadActions(){
+  const cancels=S.subs.filter(s=>s.status==='cancel');
+  let txt='SUBSCRIPTION CANCELLATION ACTION PLAN\nGenerated '+new Date().toLocaleString('en-IN')+'\n';
+  txt+='Approved annual savings: '+money(approvedSavings())+'\n\n';
+  cancels.forEach((s,i)=>{
+    const steps=s.kb?s.kb.cancel:['Log in to vendor','Billing/Subscription → Cancel','Save confirmation'];
+    txt+=`${i+1}. ${s.name} — ${money(s.annual)}/yr — sign-off: ${s.signoff?'YES':'pending'}\n`;
+    steps.forEach(st=>txt+='   • '+st+'\n');
+    txt+='   • Kill UPI AutoPay / card mandate for this merchant in your UPI app & bank.\n\n';
+  });
+  if(!cancels.length) txt+='(Nothing marked to cancel yet.)\n';
+  dl('cancellation-action-plan.txt', txt);
+}
+function dl(name,content,mime){
+  const b=new Blob([content],{type:mime||'text/plain'}); const u=URL.createObjectURL(b);
+  const a=document.createElement('a'); a.href=u; a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(u),1000);
+}
+
+/* ---------- phone reminders: write renewals to the device calendar (.ics) ---------- */
+const RRULE={weekly:'FREQ=WEEKLY',fortnightly:'FREQ=WEEKLY;INTERVAL=2',monthly:'FREQ=MONTHLY','bi-monthly':'FREQ=MONTHLY;INTERVAL=2',quarterly:'FREQ=MONTHLY;INTERVAL=3','half-yearly':'FREQ=MONTHLY;INTERVAL=6',annual:'FREQ=YEARLY'};
+function nextFuture(date,cadDays){
+  if(!date) return null;
+  const today=new Date(); today.setHours(0,0,0,0);
+  let d=new Date(date); d.setHours(0,0,0,0);
+  if(cadDays>0){ let guard=0; while(d<today && guard++<400) d=new Date(d.getTime()+cadDays*86400000); }
+  return d;
+}
+function icsDT(d,h){ const p=n=>String(n).padStart(2,'0'); return d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'T'+p(h)+'0000'; }
+function icsEsc(t){ return String(t).replace(/([,;\\])/g,'\\$1').replace(/\n/g,'\\n'); }
+function buildICS(subs){
+  const stamp=new Date().toISOString().replace(/[-:]/g,'').split('.')[0]+'Z';
+  const out=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Subscription Auditor//EN','CALSCALE:GREGORIAN','METHOD:PUBLISH'];
+  subs.forEach((s,i)=>{
+    const d=nextFuture(s.next||s.last, s.cadDays); if(!d) return;
+    const start=icsDT(d,10), end=start.slice(0,9)+'103000';
+    const summary=`Review: ${s.name} — ${money(s.amount)} renews`;
+    const desc=`${s.name}: about ${money(s.amount)} ${s.cadence} (≈${money(s.annual)}/yr).`
+      +(s.flags.length?` Flags: ${s.flags.map(f=>f.x).join(', ')}.`:'')
+      +` If you no longer need it, cancel at the vendor and stop the UPI AutoPay / card mandate.`;
+    out.push('BEGIN:VEVENT','UID:subaudit-'+s.key.replace(/[^a-z0-9]/gi,'')+'-'+i+'@local',
+      'DTSTAMP:'+stamp,'DTSTART:'+start,'DTEND:'+end);
+    if(RRULE[s.cadence]) out.push('RRULE:'+RRULE[s.cadence]);
+    out.push('SUMMARY:'+icsEsc(summary),'DESCRIPTION:'+icsEsc(desc),
+      'BEGIN:VALARM','ACTION:DISPLAY','DESCRIPTION:'+icsEsc(summary),'TRIGGER:-P3D','END:VALARM','END:VEVENT');
+  });
+  out.push('END:VCALENDAR');
+  return out.join('\r\n');
+}
+function debounce(fn,ms){ let t; return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms);}; }
+
+/* install as a phone app (works when served over http/https; skipped on file:// and inside sandboxes) */
+if('serviceWorker' in navigator && window.top===window.self && /^https?:$/.test(location.protocol)){
+  window.addEventListener('load',()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); });
+}
+
+/* init */
+restore();
+renderSources();
+</script>
+</body>
+</html>
