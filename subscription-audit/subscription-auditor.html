@@ -4,7 +4,13 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Subscription Auditor</title>
-<meta name="description" content="A private, in-browser subscription audit tool. Your bank data never leaves this page." />
+<meta name="description" content="A private, on-device subscription audit tool. Your bank data never leaves your phone." />
+<meta name="theme-color" content="#2f5fe0" />
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="apple-touch-icon" href="icon.svg" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="Sub Auditor" />
 <style>
   :root{
     --bg:#f4f6fb; --panel:#ffffff; --ink:#111827; --muted:#5b6472;
@@ -271,6 +277,16 @@
         <button class="btn ghost" data-go="dashboard">← Dashboard</button>
         <button class="btn ghost sm" id="exportActions">Download action plan</button>
       </div>
+    </div>
+    <div class="panel">
+      <h2>📲 Phone reminders</h2>
+      <p class="lead">Add your renewal dates to your phone’s calendar. Your phone then alerts you ~3 days before each charge, so you can cancel in time. No account, no server — the reminders live in your own calendar and nothing is sent anywhere.</p>
+      <div class="btnbar">
+        <button class="btn" id="icsAll">Add all renewals to my calendar</button>
+        <button class="btn ghost" id="icsFlagged">Only flagged / to-cancel</button>
+        <button class="btn ghost sm" id="enableNotif">Enable in-app alerts</button>
+      </div>
+      <p class="hint" id="remindStatus">Tip: open the downloaded <code>.ics</code> file on your phone — it drops straight into your calendar and reminds you before every renewal.</p>
     </div>
   </section>
 
@@ -952,6 +968,26 @@ $('#applyUsage').onclick=()=>{ S.usage=parseUsage($('#usageBox').value); applyUs
 $('#exportJson').onclick=()=>downloadReport();
 $('#exportActions').onclick=()=>downloadActions();
 $('#printReport').onclick=()=>window.print();
+$('#icsAll').onclick=()=>{
+  const subs=S.subs.filter(s=>s.recurring);
+  if(!subs.length){ alert('No recurring subscriptions to remind about yet.'); return; }
+  dl('subscription-renewals.ics', buildICS(subs), 'text/calendar');
+  $('#remindStatus').textContent=`Downloaded reminders for ${subs.length} subscription(s). Open the .ics file on your phone to add them to your calendar — you’ll be alerted 3 days before each renewal.`;
+};
+$('#icsFlagged').onclick=()=>{
+  const subs=S.subs.filter(s=>s.recurring && (s.status==='cancel'||s.flags.some(f=>f.t==='bad'||f.t==='warn')));
+  if(!subs.length){ alert('Nothing flagged or marked to cancel yet.'); return; }
+  dl('subscriptions-to-review.ics', buildICS(subs), 'text/calendar');
+  $('#remindStatus').textContent=`Downloaded reminders for ${subs.length} flagged item(s). Add the .ics to your phone calendar for alerts before each one renews.`;
+};
+$('#enableNotif').onclick=async()=>{
+  if(!('Notification' in window)){ $('#remindStatus').textContent='This browser doesn’t support in-app alerts — use the calendar reminders instead.'; return; }
+  try{
+    const perm=await Notification.requestPermission();
+    if(perm==='granted'){ new Notification('Subscription Auditor',{body:'Alerts on. For reminders even when this app is closed, add the calendar reminders above.'}); $('#remindStatus').textContent='In-app alerts enabled. Calendar reminders still work best for closed-app alerts.'; }
+    else { $('#remindStatus').textContent='In-app alerts not enabled — the calendar reminders work without any permission.'; }
+  }catch(e){ $('#remindStatus').textContent='Could not enable in-app alerts — use the calendar reminders instead.'; }
+};
 $('#rememberToggle').onclick=e=>{ S.remember=e.target.checked; if(S.remember)persist(); else try{localStorage.removeItem('subaudit');}catch(_){} };
 $('#modalBg').addEventListener('click',e=>{ if(e.target===$('#modalBg')) closeModal(); });
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeModal(); });
@@ -984,11 +1020,47 @@ function downloadActions(){
   if(!cancels.length) txt+='(Nothing marked to cancel yet.)\n';
   dl('cancellation-action-plan.txt', txt);
 }
-function dl(name,content){
-  const b=new Blob([content],{type:'text/plain'}); const u=URL.createObjectURL(b);
+function dl(name,content,mime){
+  const b=new Blob([content],{type:mime||'text/plain'}); const u=URL.createObjectURL(b);
   const a=document.createElement('a'); a.href=u; a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(u),1000);
 }
+
+/* ---------- phone reminders: write renewals to the device calendar (.ics) ---------- */
+const RRULE={weekly:'FREQ=WEEKLY',fortnightly:'FREQ=WEEKLY;INTERVAL=2',monthly:'FREQ=MONTHLY','bi-monthly':'FREQ=MONTHLY;INTERVAL=2',quarterly:'FREQ=MONTHLY;INTERVAL=3','half-yearly':'FREQ=MONTHLY;INTERVAL=6',annual:'FREQ=YEARLY'};
+function nextFuture(date,cadDays){
+  if(!date) return null;
+  const today=new Date(); today.setHours(0,0,0,0);
+  let d=new Date(date); d.setHours(0,0,0,0);
+  if(cadDays>0){ let guard=0; while(d<today && guard++<400) d=new Date(d.getTime()+cadDays*86400000); }
+  return d;
+}
+function icsDT(d,h){ const p=n=>String(n).padStart(2,'0'); return d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'T'+p(h)+'0000'; }
+function icsEsc(t){ return String(t).replace(/([,;\\])/g,'\\$1').replace(/\n/g,'\\n'); }
+function buildICS(subs){
+  const stamp=new Date().toISOString().replace(/[-:]/g,'').split('.')[0]+'Z';
+  const out=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Subscription Auditor//EN','CALSCALE:GREGORIAN','METHOD:PUBLISH'];
+  subs.forEach((s,i)=>{
+    const d=nextFuture(s.next||s.last, s.cadDays); if(!d) return;
+    const start=icsDT(d,10), end=start.slice(0,9)+'103000';
+    const summary=`Review: ${s.name} — ${money(s.amount)} renews`;
+    const desc=`${s.name}: about ${money(s.amount)} ${s.cadence} (≈${money(s.annual)}/yr).`
+      +(s.flags.length?` Flags: ${s.flags.map(f=>f.x).join(', ')}.`:'')
+      +` If you no longer need it, cancel at the vendor and stop the UPI AutoPay / card mandate.`;
+    out.push('BEGIN:VEVENT','UID:subaudit-'+s.key.replace(/[^a-z0-9]/gi,'')+'-'+i+'@local',
+      'DTSTAMP:'+stamp,'DTSTART:'+start,'DTEND:'+end);
+    if(RRULE[s.cadence]) out.push('RRULE:'+RRULE[s.cadence]);
+    out.push('SUMMARY:'+icsEsc(summary),'DESCRIPTION:'+icsEsc(desc),
+      'BEGIN:VALARM','ACTION:DISPLAY','DESCRIPTION:'+icsEsc(summary),'TRIGGER:-P3D','END:VALARM','END:VEVENT');
+  });
+  out.push('END:VCALENDAR');
+  return out.join('\r\n');
+}
 function debounce(fn,ms){ let t; return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms);}; }
+
+/* install as a phone app (works when served over http/https; skipped on file:// and inside sandboxes) */
+if('serviceWorker' in navigator && window.top===window.self && /^https?:$/.test(location.protocol)){
+  window.addEventListener('load',()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); });
+}
 
 /* init */
 restore();

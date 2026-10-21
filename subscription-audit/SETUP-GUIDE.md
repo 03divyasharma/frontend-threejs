@@ -78,6 +78,22 @@ These files save to your normal *Downloads* folder.
 
 ---
 
+## Step 6 — Put it on your phone & get reminders
+
+The whole point is to catch renewals *before* they bill. Set this up once:
+
+**Install it as a phone app (optional but handy)**
+- Open the tool's web address on your phone, then **Add to Home Screen** (Safari: Share → Add to Home Screen; Chrome: ⋮ menu → Add to Home screen). It now opens full-screen like an app and works offline.
+
+**Turn on phone reminders (the important bit)**
+- On the **Cancel & save** screen, tap **Add all renewals to my calendar** (or *Only flagged / to-cancel*).
+- A `.ics` file downloads. **Open it on your phone** — it drops straight into your calendar.
+- Your phone's calendar then alerts you **~3 days before each renewal**, so you have time to cancel. This repeats automatically on each subscription's cycle.
+
+> This needs no account and no server — the reminders live in *your own* calendar, and nothing is sent anywhere. (Phones can only reliably notify you when an app is closed via your calendar or a push service; the calendar route keeps everything on your device.)
+
+---
+
 ## Privacy — the important part
 
 - **Nothing is uploaded.** Open your browser's developer tools → Network tab while you use it: you'll see zero requests. There is no server to send to.

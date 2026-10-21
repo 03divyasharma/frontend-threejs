@@ -1,0 +1,14 @@
+{
+  "name": "Subscription Auditor",
+  "short_name": "Sub Auditor",
+  "description": "Find and cancel wasteful subscriptions. Private and on-device.",
+  "start_url": "./subscription-auditor.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f4f6fb",
+  "theme_color": "#2f5fe0",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
